@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useLocale } from "./LocaleProvider";
 
@@ -12,11 +13,14 @@ const COLORS = ["#22c55e", "#ef4444", "#6b7280"];
 export function SentimentDistribution({ distribution }: SentimentDistributionProps) {
   const { t } = useLocale();
 
-  const data = [
-    { name: t("sentiment.positive"), value: distribution.positive },
-    { name: t("sentiment.negative"), value: distribution.negative },
-    { name: t("sentiment.neutral"), value: distribution.neutral },
-  ];
+  const data = useMemo(
+    () => [
+      { name: t("sentiment.positive"), value: distribution.positive },
+      { name: t("sentiment.negative"), value: distribution.negative },
+      { name: t("sentiment.neutral"), value: distribution.neutral },
+    ],
+    [distribution, t]
+  );
 
   return (
     <div className="flex items-center gap-4">

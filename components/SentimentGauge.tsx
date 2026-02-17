@@ -10,9 +10,6 @@ interface SentimentGaugeProps {
 export function SentimentGauge({ score, sentiment }: SentimentGaugeProps) {
   const { t } = useLocale();
 
-  // Map score 0-100 to angle -90 to 90
-  const angle = ((score / 100) * 180) - 90;
-
   const getColor = () => {
     if (score >= 65) return "#22c55e";
     if (score >= 45) return "#eab308";
@@ -49,8 +46,8 @@ export function SentimentGauge({ score, sentiment }: SentimentGaugeProps) {
           <line
             x1="100"
             y1="100"
-            x2={100 + 60 * Math.cos((angle * Math.PI) / 180)}
-            y2={100 - 60 * Math.sin((-angle * Math.PI) / 180)}
+            x2={100 + 60 * Math.cos(((180 - (score / 100) * 180) * Math.PI) / 180)}
+            y2={100 - 60 * Math.sin(((180 - (score / 100) * 180) * Math.PI) / 180)}
             stroke={getColor()}
             strokeWidth="2.5"
             strokeLinecap="round"

@@ -1,26 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { TrendingUp, TrendingDown, Bot, BarChart3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FearGreedGauge } from "@/components/FearGreedGauge";
+import { QueryErrorReset } from "@/components/QueryErrorReset";
 import { useLocale } from "@/components/LocaleProvider";
 import { formatPrice, formatLargeNumber, formatPercentage } from "@/lib/utils";
-import type { Coin, FearGreedData } from "@/types";
-
-interface MarketData {
-  total_market_cap: number;
-  total_volume: number;
-  btc_dominance: number;
-  market_cap_change_24h: number;
-  active_cryptocurrencies: number;
-  top_gainers: Coin[];
-  top_losers: Coin[];
-  ai_comment: { comment_tr: string; comment_en: string };
-}
+import { useMarketOverview, useFearGreed } from "@/hooks/useCoins";
+import type { Coin } from "@/types";
 
 function CoinRow({ coin }: { coin: Coin }) {
   const isPositive = coin.price_change_percentage_24h >= 0;
@@ -51,22 +41,10 @@ function CoinRow({ coin }: { coin: Coin }) {
 
 export default function MarketPage() {
   const { t, locale } = useLocale();
-  const [market, setMarket] = useState<MarketData | null>(null);
-  const [fearGreed, setFearGreed] = useState<FearGreedData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: market, isLoading: marketLoading, error: marketError, refetch: refetchMarket } = useMarketOverview();
+  const { data: fearGreed, isLoading: fgLoading } = useFearGreed();
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/market/overview").then((r) => r.json()),
-      fetch("/api/market/fear-greed").then((r) => r.json()),
-    ])
-      .then(([marketData, fgData]) => {
-        setMarket(marketData);
-        setFearGreed(fgData);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+  const loading = marketLoading && fgLoading;
 
   if (loading) {
     return (
@@ -81,6 +59,14 @@ export default function MarketPage() {
           <Skeleton className="h-[400px]" />
           <Skeleton className="h-[400px]" />
         </div>
+      </div>
+    );
+  }
+
+  if (marketError) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <QueryErrorReset error={marketError} onRetry={() => refetchMarket()} message={t("error")} />
       </div>
     );
   }
@@ -119,7 +105,9 @@ export default function MarketPage() {
         </Card>
         <Card className="p-4 flex flex-col items-center justify-center">
           <p className="text-xs text-muted-foreground mb-2">{t("market.fearGreed")}</p>
-          {fearGreed ? (
+          {fgLoading ? (
+            <Skeleton className="h-16 w-24" />
+          ) : fearGreed ? (
             <FearGreedGauge
               value={fearGreed.value}
               classification={fearGreed.value_classification}

@@ -1,10 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/cache";
+import { rateLimit } from "@/lib/rate-limit";
 import type { FearGreedData } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (rateLimit(request).limited) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const cacheKey = "fear_greed";
     const cached = getCache<FearGreedData>(cacheKey);

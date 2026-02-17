@@ -1,10 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getGlobalData, getCoins } from "@/lib/coingecko";
 import { getMarketSentiment } from "@/lib/xai";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (rateLimit(request).limited) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const [globalData, coins] = await Promise.all([
       getGlobalData(),

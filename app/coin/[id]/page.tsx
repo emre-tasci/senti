@@ -1,77 +1,67 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, TrendingUp, TrendingDown, Bot } from "lucide-react";
+import {
+  ArrowLeft, TrendingUp, TrendingDown, Bot, Star,
+  BarChart3, Activity, ArrowUpCircle, ArrowDownCircle,
+  Coins, Database, Trophy, Percent,
+} from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { PriceChart } from "@/components/PriceChart";
 import { SentimentGauge } from "@/components/SentimentGauge";
 import { SentimentDistribution } from "@/components/SentimentDistribution";
+import { SentimentTrend } from "@/components/SentimentTrend";
 import { NewsCard } from "@/components/NewsCard";
+import { AlertDialog } from "@/components/AlertDialog";
+import { QueryErrorReset } from "@/components/QueryErrorReset";
 import { useLocale } from "@/components/LocaleProvider";
 import { formatPrice, formatLargeNumber, formatPercentage } from "@/lib/utils";
-import type { CoinDetail, PriceHistory, SentimentAnalysis, NewsItem } from "@/types";
+import { useCoinDetail, useCoinNews, useSentiment } from "@/hooks/useCoins";
+import { useIsWatched } from "@/hooks/useWatchlist";
+import { addSentimentSnapshot, getSentimentHistory } from "@/lib/storage";
 
 export default function CoinDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t, locale } = useLocale();
 
-  const [detail, setDetail] = useState<CoinDetail | null>(null);
-  const [history, setHistory] = useState<PriceHistory | null>(null);
-  const [sentiment, setSentiment] = useState<SentimentAnalysis | null>(null);
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sentimentLoading, setSentimentLoading] = useState(true);
+  const { data: coinData, isLoading, error, refetch } = useCoinDetail(id);
+  const detail = coinData?.detail ?? null;
 
+  const { data: newsData } = useCoinNews(id, detail?.symbol || "");
+
+  const sentimentParams = detail
+    ? {
+        name: detail.name,
+        symbol: detail.symbol,
+        price: detail.market_data.current_price.usd,
+        change: detail.market_data.price_change_percentage_24h,
+      }
+    : null;
+
+  const { data: sentiment, isLoading: sentimentLoading } = useSentiment(id, sentimentParams);
+  const { watched, toggle: toggleWatchlist } = useIsWatched(id);
+
+  const news = Array.isArray(newsData) ? newsData : [];
+  const sentimentHistory = typeof window !== "undefined" ? getSentimentHistory(id) : [];
+
+  // Record sentiment snapshot
   useEffect(() => {
-    if (!id) return;
+    if (sentiment && typeof sentiment.overall_score === "number" && !sentiment.cached) {
+      addSentimentSnapshot({
+        coinId: id,
+        score: sentiment.overall_score,
+        sentiment: sentiment.overall_sentiment,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [sentiment, id]);
 
-    // Fetch coin detail and price history
-    fetch(`/api/coins/${id}?days=7`)
-      .then((r) => r.json())
-      .then((data) => {
-        setDetail(data.detail);
-        setHistory(data.history);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-
-  }, [id]);
-
-  // Fetch news + sentiment after detail loads (needs symbol)
-  useEffect(() => {
-    if (!id || !detail) return;
-
-    // Fetch news with symbol
-    fetch(`/api/coins/${id}/news?symbol=${detail.symbol}`)
-      .then((r) => r.json())
-      .then((data) => setNews(Array.isArray(data) ? data : []))
-      .catch(console.error);
-
-    // Fetch sentiment
-    const params = new URLSearchParams({
-      name: detail.name,
-      symbol: detail.symbol,
-      price: String(detail.market_data.current_price.usd),
-      change: String(detail.market_data.price_change_percentage_24h),
-    });
-
-    fetch(`/api/coins/${id}/sentiment?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && !data.error && typeof data.overall_score === "number") {
-          setSentiment(data);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setSentimentLoading(false));
-  }, [id, detail]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-6 space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -84,10 +74,14 @@ export default function CoinDetailPage() {
     );
   }
 
-  if (!detail) {
+  if (error || !detail) {
     return (
       <div className="container mx-auto px-4 py-6">
-        <p className="text-muted-foreground">{t("error")}</p>
+        {error ? (
+          <QueryErrorReset error={error} onRetry={() => refetch()} message={t("error")} />
+        ) : (
+          <p className="text-muted-foreground">{t("error")}</p>
+        )}
         <Link href="/">
           <Button variant="ghost" className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> {t("nav.home")}
@@ -123,6 +117,16 @@ export default function CoinDetailPage() {
               <span className="text-muted-foreground text-sm uppercase">
                 {detail.symbol}
               </span>
+              <button
+                onClick={toggleWatchlist}
+                className="text-muted-foreground hover:text-yellow-500 transition-colors"
+              >
+                <Star
+                  className={`h-5 w-5 ${
+                    watched ? "fill-yellow-500 text-yellow-500" : ""
+                  }`}
+                />
+              </button>
             </h1>
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold font-mono">
@@ -148,24 +152,37 @@ export default function CoinDetailPage() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: t("coin.marketCap"), value: formatLargeNumber(md.market_cap.usd) },
-          { label: t("coin.volume"), value: formatLargeNumber(md.total_volume.usd) },
-          { label: t("coin.high24h"), value: formatPrice(md.high_24h.usd) },
-          { label: t("coin.low24h"), value: formatPrice(md.low_24h.usd) },
-          { label: t("coin.supply"), value: md.circulating_supply.toLocaleString() },
-          { label: t("coin.maxSupply"), value: md.max_supply ? md.max_supply.toLocaleString() : "∞" },
-          { label: t("coin.ath"), value: formatPrice(md.ath.usd) },
-          { label: "ATH %", value: `${md.ath_change_percentage.usd.toFixed(1)}%` },
+          { label: t("coin.marketCap"), value: formatLargeNumber(md.market_cap.usd), icon: BarChart3 },
+          { label: t("coin.volume"), value: formatLargeNumber(md.total_volume.usd), icon: Activity },
+          { label: t("coin.high24h"), value: formatPrice(md.high_24h.usd), icon: ArrowUpCircle },
+          { label: t("coin.low24h"), value: formatPrice(md.low_24h.usd), icon: ArrowDownCircle },
+          { label: t("coin.supply"), value: md.circulating_supply.toLocaleString(), icon: Coins },
+          { label: t("coin.maxSupply"), value: md.max_supply ? md.max_supply.toLocaleString() : "∞", icon: Database },
+          { label: t("coin.ath"), value: formatPrice(md.ath.usd), icon: Trophy },
+          { label: "ATH %", value: `${md.ath_change_percentage.usd.toFixed(1)}%`, icon: Percent },
         ].map((stat) => (
           <Card key={stat.label} className="p-3">
-            <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <stat.icon className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </div>
             <p className="text-sm font-medium font-mono">{stat.value}</p>
           </Card>
         ))}
       </div>
 
       {/* Price Chart */}
-      {history && <PriceChart coinId={id} initialHistory={history} />}
+      <PriceChart coinId={id} />
+
+      {/* Price Alerts */}
+      <AlertDialog
+        coinId={id}
+        coinName={detail.name}
+        currentPrice={md.current_price.usd}
+      />
+
+      {/* Sentiment Trend */}
+      <SentimentTrend history={sentimentHistory} />
 
       {/* Sentiment + News grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

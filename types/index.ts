@@ -92,3 +92,54 @@ export type Locale = "tr" | "en";
 export interface Translations {
   [key: string]: string;
 }
+
+export interface WatchlistState {
+  ids: string[];
+}
+
+export interface PriceAlert {
+  id: string;
+  coinId: string;
+  coinName: string;
+  targetPrice: number;
+  direction: "above" | "below";
+  triggered: boolean;
+  createdAt: string;
+}
+
+export interface AlertsState {
+  alerts: PriceAlert[];
+}
+
+export interface SentimentSnapshot {
+  coinId: string;
+  score: number;
+  sentiment: "positive" | "negative" | "neutral";
+  timestamp: string;
+}
+
+export interface CategoryDef {
+  id: string;
+  name_tr: string;
+  name_en: string;
+  description_tr: string;
+  description_en: string;
+  icon: string;
+  color: string;
+}
+
+export interface CategoryMarketData {
+  id: string;
+  market_cap: number;
+  volume_24h: number;
+  market_cap_change_24h: number;
+  top_3_coins: string[];
+  coins_count: number;
+}
+
+export interface CategorySentiment {
+  overall_score: number;
+  overall_sentiment: "positive" | "negative" | "neutral";
+  ai_comment_tr: string;
+  ai_comment_en: string;
+}

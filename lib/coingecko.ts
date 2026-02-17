@@ -1,5 +1,5 @@
 import { getCache, setCache } from "./cache";
-import type { Coin, CoinDetail, PriceHistory } from "@/types";
+import type { Coin, CoinDetail, PriceHistory, CategoryMarketData } from "@/types";
 
 const BASE_URL = process.env.COINGECKO_API_URL || "https://api.coingecko.com/api/v3";
 
@@ -71,5 +71,49 @@ export async function searchCoins(query: string): Promise<{
     `/search?query=${encodeURIComponent(query)}`,
     `search_${query}`,
     120
+  );
+}
+
+export async function getCategoryMarketData(categoryId: string): Promise<CategoryMarketData | null> {
+  const cacheKey = `category_market_${categoryId}`;
+  const cached = getCache<CategoryMarketData>(cacheKey);
+  if (cached) return cached;
+
+  const allCategories = await fetchCG<
+    {
+      id: string;
+      market_cap: number;
+      volume_24h: number;
+      market_cap_change_24h: number;
+      top_3_coins: string[];
+      content: string;
+    }[]
+  >("/coins/categories", "coins_categories_all", 300);
+
+  const match = allCategories.find((c) => c.id === categoryId);
+  if (!match) return null;
+
+  const data: CategoryMarketData = {
+    id: match.id,
+    market_cap: match.market_cap ?? 0,
+    volume_24h: match.volume_24h ?? 0,
+    market_cap_change_24h: match.market_cap_change_24h ?? 0,
+    top_3_coins: match.top_3_coins ?? [],
+    coins_count: 0,
+  };
+
+  setCache(cacheKey, data, 300);
+  return data;
+}
+
+export async function getCategoryCoins(
+  categoryId: string,
+  page = 1,
+  perPage = 50
+): Promise<Coin[]> {
+  return fetchCG<Coin[]>(
+    `/coins/markets?vs_currency=usd&category=${encodeURIComponent(categoryId)}&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=true&price_change_percentage=24h`,
+    `category_coins_${categoryId}_${page}_${perPage}`,
+    60
   );
 }

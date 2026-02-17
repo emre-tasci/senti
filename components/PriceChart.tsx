@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -14,11 +14,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocale } from "./LocaleProvider";
 import { formatPrice } from "@/lib/utils";
-import type { PriceHistory } from "@/types";
+import { useCoinDetail } from "@/hooks/useCoins";
 
 interface PriceChartProps {
   coinId: string;
-  initialHistory?: PriceHistory;
+  initialDays?: string;
 }
 
 const PERIODS = [
@@ -28,36 +28,27 @@ const PERIODS = [
   { key: "365", label: "chart.1y" },
 ];
 
-export function PriceChart({ coinId, initialHistory }: PriceChartProps) {
+export function PriceChart({ coinId, initialDays = "7" }: PriceChartProps) {
   const { t } = useLocale();
-  const [period, setPeriod] = useState("7");
-  const [history, setHistory] = useState<PriceHistory | null>(initialHistory || null);
-  const [loading, setLoading] = useState(false);
+  const [period, setPeriod] = useState(initialDays);
+  const { data, isLoading } = useCoinDetail(coinId, period);
+  const history = data?.history ?? null;
 
-  useEffect(() => {
-    if (period === "7" && initialHistory) {
-      setHistory(initialHistory);
-      return;
-    }
+  const chartData = useMemo(
+    () =>
+      (history?.prices || []).map(([timestamp, price]) => ({
+        date: new Date(timestamp).toLocaleDateString(),
+        price,
+      })),
+    [history]
+  );
 
-    setLoading(true);
-    fetch(`/api/coins/${coinId}?days=${period}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setHistory(data.history);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [period, coinId, initialHistory]);
-
-  const chartData = (history?.prices || []).map(([timestamp, price]) => ({
-    date: new Date(timestamp).toLocaleDateString(),
-    price,
-  }));
-
-  const isPositive =
-    chartData.length > 1 &&
-    chartData[chartData.length - 1].price >= chartData[0].price;
+  const isPositive = useMemo(
+    () =>
+      chartData.length > 1 &&
+      chartData[chartData.length - 1].price >= chartData[0].price,
+    [chartData]
+  );
 
   return (
     <Card>
@@ -78,7 +69,7 @@ export function PriceChart({ coinId, initialHistory }: PriceChartProps) {
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {isLoading ? (
           <Skeleton className="w-full h-[300px]" />
         ) : (
           <div className="w-full h-[300px]">
