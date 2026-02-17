@@ -31,7 +31,7 @@ export async function getCoins(page = 1, perPage = 50): Promise<Coin[]> {
 
 export async function getCoinDetail(id: string): Promise<CoinDetail> {
   return fetchCG<CoinDetail>(
-    `/coins/${encodeURIComponent(id)}?localization=true&tickers=false&community_data=false&developer_data=false`,
+    `/coins/${encodeURIComponent(id)}?localization=true&tickers=false&community_data=true&developer_data=true`,
     `coin_detail_${id}`,
     30
   );

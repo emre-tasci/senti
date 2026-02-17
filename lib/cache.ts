@@ -23,3 +23,15 @@ export function getCache<T>(key: string): T | null {
 export function setCache<T>(key: string, data: T, ttlSeconds: number): void {
   store.set(key, { data, expiry: Date.now() + ttlSeconds * 1000 });
 }
+
+export function clearCache(prefix?: string): void {
+  if (!prefix) {
+    store.clear();
+    return;
+  }
+  const keysToDelete: string[] = [];
+  store.forEach((_v, key) => {
+    if (key.startsWith(prefix)) keysToDelete.push(key);
+  });
+  keysToDelete.forEach((key) => store.delete(key));
+}

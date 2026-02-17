@@ -13,9 +13,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { PriceChart } from "@/components/PriceChart";
-import { SentimentGauge } from "@/components/SentimentGauge";
-import { SentimentDistribution } from "@/components/SentimentDistribution";
+import { SentimentHero } from "@/components/SentimentGauge";
+import { SentimentTabs } from "@/components/SentimentTabs";
+import { SentimentOverview } from "@/components/SentimentOverview";
+import { SentimentDetails } from "@/components/SentimentDetails";
 import { SentimentTrend } from "@/components/SentimentTrend";
+import { TechnicalSignalsContent } from "@/components/TechnicalSignals";
+import { SocialMetricsContent } from "@/components/SocialMetrics";
 import { NewsCard } from "@/components/NewsCard";
 import { AlertDialog } from "@/components/AlertDialog";
 import { QueryErrorReset } from "@/components/QueryErrorReset";
@@ -40,6 +44,8 @@ export default function CoinDetailPage() {
         symbol: detail.symbol,
         price: detail.market_data.current_price.usd,
         change: detail.market_data.price_change_percentage_24h,
+        change7d: detail.market_data.price_change_percentage_7d,
+        change30d: detail.market_data.price_change_percentage_30d,
       }
     : null;
 
@@ -55,7 +61,9 @@ export default function CoinDetailPage() {
       addSentimentSnapshot({
         coinId: id,
         score: sentiment.overall_score,
-        sentiment: sentiment.overall_sentiment,
+        sentiment: sentiment.enhanced_sentiment || sentiment.overall_sentiment,
+        confidence: sentiment.confidence,
+        technical_signal: sentiment.technical_signals?.overall_signal,
         timestamp: new Date().toISOString(),
       });
     }
@@ -93,6 +101,7 @@ export default function CoinDetailPage() {
 
   const md = detail.market_data;
   const isPositive = md.price_change_percentage_24h >= 0;
+  const aiComment = locale === "tr" ? sentiment?.ai_comment_tr : sentiment?.ai_comment_en;
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -184,76 +193,112 @@ export default function CoinDetailPage() {
       {/* Sentiment Trend */}
       <SentimentTrend history={sentimentHistory} />
 
-      {/* Sentiment + News grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sentiment */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              {t("sentiment.title")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sentimentLoading ? (
-              <div className="space-y-4 py-4">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-                  <p className="text-sm text-muted-foreground">
-                    {locale === "tr" ? "AI analiz yapiliyor..." : "AI analyzing..."}
-                  </p>
-                </div>
-                <Skeleton className="h-24" />
+      {/* Sentiment Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
+            {t("sentiment.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sentimentLoading ? (
+            <div className="space-y-4 py-4">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+                <p className="text-sm text-muted-foreground">
+                  {locale === "tr" ? "AI analiz yapiliyor..." : "AI analyzing..."}
+                </p>
               </div>
-            ) : sentiment ? (
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row items-center justify-around gap-4">
-                  <SentimentGauge
-                    score={sentiment.overall_score}
-                    sentiment={sentiment.overall_sentiment}
-                  />
-                  <SentimentDistribution distribution={sentiment.distribution} />
-                </div>
+              <Skeleton className="h-24" />
+            </div>
+          ) : sentiment ? (
+            <div className="space-y-6">
+              {/* Sentiment Hero — always visible */}
+              <SentimentHero
+                score={sentiment.overall_score}
+                sentiment={sentiment.enhanced_sentiment || sentiment.overall_sentiment}
+                confidence={sentiment.confidence}
+                signalAlignment={sentiment.signal_alignment}
+                dimensions={sentiment.dimensions}
+                aiSummary={aiComment}
+              />
 
-                {/* AI Comment */}
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                    <Bot className="h-4 w-4" />
-                    {t("sentiment.aiComment")}
-                  </h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {locale === "tr" ? sentiment.ai_comment_tr : sentiment.ai_comment_en}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">{t("error")}</p>
-            )}
-          </CardContent>
-        </Card>
+              {/* Tabbed content */}
+              <SentimentTabs
+                tabs={[
+                  {
+                    key: "overview",
+                    labelKey: "tabs.overview",
+                    content: (
+                      <SentimentOverview
+                        aiComment={aiComment}
+                        distribution={sentiment.distribution}
+                        emotionalIndicators={sentiment.emotional_indicators}
+                        confidence={sentiment.confidence}
+                      />
+                    ),
+                  },
+                  {
+                    key: "technical",
+                    labelKey: "tabs.technical",
+                    content: sentiment.technical_signals ? (
+                      <TechnicalSignalsContent signals={sentiment.technical_signals} />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t("error")}</p>
+                    ),
+                  },
+                  {
+                    key: "social",
+                    labelKey: "tabs.social",
+                    content: sentiment.social_metrics ? (
+                      <SocialMetricsContent metrics={sentiment.social_metrics} />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t("error")}</p>
+                    ),
+                  },
+                  {
+                    key: "details",
+                    labelKey: "tabs.details",
+                    content: (
+                      <SentimentDetails
+                        dimensions={sentiment.dimensions}
+                        riskFactorsTr={sentiment.risk_factors_tr}
+                        riskFactorsEn={sentiment.risk_factors_en}
+                        keyLevels={sentiment.key_levels}
+                      />
+                    ),
+                  },
+                ]}
+              />
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">{t("error")}</p>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* News */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("news.title")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {news.length === 0 ? (
-              <p className="text-muted-foreground text-sm">{t("news.noNews")}</p>
-            ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {news.map((item, index) => (
-                  <NewsCard
-                    key={item.id}
-                    news={item}
-                    sentimentResult={sentiment?.results[index]}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* News */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{t("news.title")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {news.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("news.noNews")}</p>
+          ) : (
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              {news.map((item, index) => (
+                <NewsCard
+                  key={item.id}
+                  news={item}
+                  sentimentResult={sentiment?.results[index]}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

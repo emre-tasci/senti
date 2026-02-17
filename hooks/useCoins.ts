@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { Coin, CoinDetail, PriceHistory, NewsItem, SentimentAnalysis, FearGreedData } from "@/types";
+import type { Coin, CoinDetail, PriceHistory, NewsItem, EnhancedSentimentAnalysis, FearGreedData } from "@/types";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -34,7 +34,7 @@ export function useCoinNews(coinId: string, symbol: string) {
 
 export function useSentiment(
   coinId: string,
-  params: { name: string; symbol: string; price: number; change: number } | null
+  params: { name: string; symbol: string; price: number; change: number; change7d?: number; change30d?: number } | null
 ) {
   const qs = params
     ? new URLSearchParams({
@@ -42,10 +42,12 @@ export function useSentiment(
         symbol: params.symbol,
         price: String(params.price),
         change: String(params.change),
+        ...(params.change7d !== undefined && { change7d: String(params.change7d) }),
+        ...(params.change30d !== undefined && { change30d: String(params.change30d) }),
       }).toString()
     : "";
 
-  return useQuery<SentimentAnalysis>({
+  return useQuery<EnhancedSentimentAnalysis>({
     queryKey: ["sentiment", coinId],
     queryFn: () => fetchJson(`/api/coins/${coinId}/sentiment?${qs}`),
     enabled: !!coinId && !!params,

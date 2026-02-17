@@ -35,6 +35,25 @@ export interface CoinDetail {
   links: {
     homepage: string[];
     blockchain_site: string[];
+    subreddit_url: string | null;
+  };
+  community_data?: {
+    twitter_followers: number | null;
+    reddit_subscribers: number | null;
+    reddit_accounts_active_48h: number | null;
+    reddit_average_posts_48h: number | null;
+    reddit_average_comments_48h: number | null;
+    telegram_channel_user_count: number | null;
+  };
+  developer_data?: {
+    forks: number | null;
+    stars: number | null;
+    subscribers: number | null;
+    total_issues: number | null;
+    closed_issues: number | null;
+    pull_requests_merged: number | null;
+    pull_request_contributors: number | null;
+    commit_count_4_weeks: number | null;
   };
 }
 
@@ -51,6 +70,18 @@ export interface NewsItem {
   source: { title: string; domain: string };
   published_at: string;
   currencies?: { code: string; title: string }[];
+  description?: string;
+  votes?: {
+    positive: number;
+    negative: number;
+    important: number;
+    liked: number;
+    disliked: number;
+    lol: number;
+    toxic: number;
+    saved: number;
+  };
+  kind?: string;
 }
 
 export interface SentimentResult {
@@ -114,9 +145,112 @@ export interface AlertsState {
 export interface SentimentSnapshot {
   coinId: string;
   score: number;
-  sentiment: "positive" | "negative" | "neutral";
+  sentiment: string;
+  confidence?: number;
+  technical_signal?: string;
   timestamp: string;
 }
+
+// --- Technical Analysis ---
+
+export interface TechnicalSignals {
+  rsi_14: number | null;
+  rsi_signal: "overbought" | "oversold" | "neutral";
+  macd: {
+    macd_line: number;
+    signal_line: number;
+    histogram: number;
+    signal: "bullish" | "bearish" | "neutral";
+  } | null;
+  moving_averages: {
+    sma_20: number | null;
+    sma_50: number | null;
+    ema_12: number | null;
+    ema_26: number | null;
+    price_vs_sma20: "above" | "below";
+    price_vs_sma50: "above" | "below";
+    golden_cross: boolean;
+    death_cross: boolean;
+  };
+  bollinger_bands: {
+    upper: number;
+    middle: number;
+    lower: number;
+    bandwidth: number;
+    position: "above_upper" | "near_upper" | "middle" | "near_lower" | "below_lower";
+  } | null;
+  volume_analysis: {
+    avg_volume_7d: number;
+    current_volume: number;
+    volume_change_pct: number;
+    volume_trend: "increasing" | "decreasing" | "stable";
+  } | null;
+  support_resistance: {
+    support: number[];
+    resistance: number[];
+  };
+  overall_signal: "strong_bullish" | "bullish" | "neutral" | "bearish" | "strong_bearish";
+  signal_strength: number;
+}
+
+// --- Social Metrics ---
+
+export interface SocialMetrics {
+  twitter_followers: number | null;
+  reddit_subscribers: number | null;
+  reddit_active_users_48h: number | null;
+  reddit_posts_48h: number | null;
+  reddit_comments_48h: number | null;
+  telegram_users: number | null;
+  github_stars: number | null;
+  github_forks: number | null;
+  github_commits_4w: number | null;
+  social_buzz_level: "very_high" | "high" | "moderate" | "low" | "very_low";
+  developer_activity: "very_active" | "active" | "moderate" | "low" | "inactive";
+  community_size: "massive" | "large" | "medium" | "small" | "tiny";
+  crowd_sentiment_score: number | null;
+  crowd_sentiment: "positive" | "negative" | "neutral" | null;
+}
+
+// --- Enhanced Sentiment ---
+
+export type EnhancedSentimentLevel = "strongly_bullish" | "bullish" | "neutral" | "bearish" | "strongly_bearish";
+
+export interface SentimentDimension {
+  score: number;
+  signal: string;
+  key_driver_tr: string;
+  key_driver_en: string;
+}
+
+export interface EmotionalIndicators {
+  fear_level: number;
+  fomo_level: number;
+  uncertainty_level: number;
+}
+
+export interface EnhancedSentimentAnalysis extends SentimentAnalysis {
+  enhanced_sentiment: EnhancedSentimentLevel;
+  confidence: number;
+  dimensions: {
+    news_sentiment: SentimentDimension;
+    technical_outlook: SentimentDimension;
+    social_buzz: SentimentDimension;
+    market_context: SentimentDimension;
+  };
+  signal_alignment: "strong_consensus" | "moderate_consensus" | "mixed_signals" | "divergent";
+  emotional_indicators: EmotionalIndicators;
+  technical_signals: TechnicalSignals | null;
+  social_metrics: SocialMetrics | null;
+  risk_factors_tr: string[];
+  risk_factors_en: string[];
+  key_levels: {
+    support: number[];
+    resistance: number[];
+  };
+}
+
+// --- Categories ---
 
 export interface CategoryDef {
   id: string;

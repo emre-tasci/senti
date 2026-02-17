@@ -2,28 +2,20 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface SentimentBadgeProps {
-  sentiment: "positive" | "negative" | "neutral";
+  sentiment: string;
   score?: number;
 }
 
-const icons = {
-  positive: TrendingUp,
-  negative: TrendingDown,
-  neutral: Minus,
-};
-
-const labels = {
-  positive: "Positive",
-  negative: "Negative",
-  neutral: "Neutral",
-};
-
 export function SentimentBadge({ sentiment, score }: SentimentBadgeProps) {
-  const Icon = icons[sentiment];
-  const text = score !== undefined ? `${labels[sentiment]} (${score})` : labels[sentiment];
+  const isPositive = sentiment.includes("bullish") || sentiment === "positive";
+  const isNegative = sentiment.includes("bearish") || sentiment === "negative";
+  const variant = isPositive ? "positive" : isNegative ? "negative" : "neutral";
+  const Icon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus;
+  const label = sentiment.replace("_", " ").replace("strongly ", "");
+  const text = score !== undefined ? `${label} (${score})` : label;
 
   return (
-    <Badge variant={sentiment} className="gap-1">
+    <Badge variant={variant} className="gap-1 capitalize">
       <Icon className="h-3 w-3" />
       {text}
     </Badge>

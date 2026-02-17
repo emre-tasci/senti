@@ -130,7 +130,9 @@ export function markAlertTriggered(id: string): void {
 export interface SentimentSnapshot {
   coinId: string;
   score: number;
-  sentiment: "positive" | "negative" | "neutral";
+  sentiment: string;
+  confidence?: number;
+  technical_signal?: string;
   timestamp: string;
 }
 

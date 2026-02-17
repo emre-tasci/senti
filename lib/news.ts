@@ -16,7 +16,7 @@ export async function getCoinNews(symbol: string): Promise<NewsItem[]> {
 
   try {
     const res = await fetch(
-      `${CRYPTOPANIC_BASE}/posts/?auth_token=${apiKey}&currencies=${symbol.toUpperCase()}&public=true`,
+      `${CRYPTOPANIC_BASE}/posts/?auth_token=${apiKey}&currencies=${symbol.toUpperCase()}&public=true&metadata=true`,
       { next: { revalidate: 300 } }
     );
 
@@ -26,10 +26,12 @@ export async function getCoinNews(symbol: string): Promise<NewsItem[]> {
     }
 
     const data = await res.json();
-    const news: NewsItem[] = (data.results || []).slice(0, 5).map((item: Record<string, unknown>) => {
+    const news: NewsItem[] = (data.results || []).slice(0, 15).map((item: Record<string, unknown>) => {
       // v2 API: source can be an object or missing; kind indicates type (news/blog/media)
       const src = item.source as Record<string, unknown> | undefined;
       const kind = String(item.kind || "news");
+      const metadata = item.metadata as Record<string, unknown> | undefined;
+      const votes = item.votes as Record<string, number> | undefined;
       return {
         id: String(item.id || item.title || Math.random()),
         title: String(item.title || "").trim(),
@@ -40,6 +42,18 @@ export async function getCoinNews(symbol: string): Promise<NewsItem[]> {
         },
         published_at: String(item.published_at || new Date().toISOString()),
         currencies: Array.isArray(item.currencies) ? item.currencies : [],
+        description: metadata?.description ? String(metadata.description).slice(0, 300) : undefined,
+        votes: votes ? {
+          positive: votes.positive || 0,
+          negative: votes.negative || 0,
+          important: votes.important || 0,
+          liked: votes.liked || 0,
+          disliked: votes.disliked || 0,
+          lol: votes.lol || 0,
+          toxic: votes.toxic || 0,
+          saved: votes.saved || 0,
+        } : undefined,
+        kind,
       };
     });
 
